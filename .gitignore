@@ -1,0 +1,24 @@
+*.tfstate
+*.tfstate.*
+.terraform/
+.crash
+*.tfvars.json
+override.tf
+override.tf.json
+terraform.tfstate.backup
+.terraform.lock.hcl
+
+# SSH keys
+*.pem
+*.key
+
+# IDEs/editors
+.vscode/
+.idea/
+.DS_Store
+
+# Terraform plan files
+*.plan
+*.out
+*.tfplan
+myplan

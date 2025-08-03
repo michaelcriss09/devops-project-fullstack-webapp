@@ -1,5 +1,5 @@
 resource "aws_iam_role" "ecs_role" {
-  name = "ecs_role"
+  name = local.ecr_role
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -16,8 +16,8 @@ resource "aws_iam_role" "ecs_role" {
 }
 
 
-data "aws_iam_policy" "AmazonEC2ContainerRegistryFullAccess"{
-    arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+data "aws_iam_policy" "AmazonEC2ContainerRegistryFullAccess" {
+  arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEC2ContainerRegistryFullAccess_attachment" {
@@ -34,13 +34,6 @@ resource "aws_ecr_repository" "ecr_repository" {
     scan_on_push = true
   }
 
-  force_delete = true 
+  force_delete = true
 }
 
-resource "null_resource" "build_and_push" {
-  provisioner "local-exec" {
-    command = "./build_and_push.sh"
-  }
-
-  depends_on = [aws_ecr_repository.ecr_repository]
-}

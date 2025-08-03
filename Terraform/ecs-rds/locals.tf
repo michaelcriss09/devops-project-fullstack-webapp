@@ -1,0 +1,28 @@
+locals {
+  name              = "devops_project"
+  region            = "us-east-2"
+  vpc_name          = "vpc-devops-project"
+  vpc_cidr_block    = "10.0.0.0/16"
+  igw_name          = "igw_vpc_project"
+  nat_name          = "nat_gateway"
+  public_rt         = "public_route_table"
+  private_rt        = "private-route-table"
+  alb_sg            = "alb_sg"
+  ecs_task_sg       = "ecs_task_sg"
+  tg_name           = "backend-target-group"
+  alb_name          = "ecs-alb"
+  subnet_group      = "rds-private-subnet-group"
+  rds_sg            = "rds_sg"
+  identifier        = "mysql-rds-instance"
+  allocated_storage = 20
+  storage_type      = "gp2"
+  engine            = "mysql"
+  engine_version    = "8.0"
+  instance_class    = "db.t3.micro"
+  db_name           = "stomology_dep"
+  username          = "admin"
+  password          = "admin1234"
+  ecs_cluster_name  = "container-cluster"
+  ecs_service_name  = "ecs-service"
+
+}

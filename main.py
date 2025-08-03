@@ -9,6 +9,8 @@ import json
 import db
 #--------------------------------------------------------------------------#
 
+
+
 """Functions"""
 # Generate random password
 def get_random_number():
@@ -19,6 +21,8 @@ def get_random_number():
     return result_str
 
 #--------------------------------------------------------------------------#
+
+db.init_database()
 
 # Connecting with Database
 mydb, mycursor = db.mysql_connector()

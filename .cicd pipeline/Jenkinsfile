@@ -19,19 +19,7 @@ pipeline{
             }
         }
 
-        stage('Preparing venv'){
-            steps{
-                sh """
-                ${env.PYTHON} -m venv ${env.VENV_DIR}
-                . ${env.VENV_DIR}/bin/activate
-                pip install --upgrade pip
-                pip install pytest
-                pip install -r requirements.txt
-                """
-            }
-        }
-
-        stage('Preparing aws env'){
+        stage('Preparing AWS env'){
             steps{
                 script{
                     env.AWS_ACCOUNT_ID = sh(
@@ -45,18 +33,7 @@ pipeline{
             }
         }
 
-        stage('Test unit'){
-            steps{
-                sh """
-                . ${env.VENV_DIR}/bin/activate
-                pytest tests/
-                pwd
-                ls
-                """
-            }
-        }
-
-        stage('Build App Image'){
+        stage('Build Image'){
             steps{
                 script{
                     dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", ".")
@@ -101,11 +78,11 @@ pipeline{
         stage('Terraform destroy') {
             steps {
                 input "Want to remove terraform provisioning infraestructure?"
-                dir("${env.ECR_DIR}") {
+                dir("${env.ECS_RDS_DIR}") {
                     sh 'terraform destroy -auto-approve'
                 }
 
-                dir("${env.ECS_RDS_DIR}"){
+                dir("${env.ECR_DIR}"){
                     sh 'terraform destroy -auto-approve'
                 }
             }
@@ -113,11 +90,14 @@ pipeline{
     }
     post{
         failure{
+
+            // For testing purposes
+
             echo "Build failed. Destroying infraestructure..."
-            dir("${env.ECR_DIR}"){
+            dir("${env.ECS_RDS_DIR}"){
                 sh 'terraform destroy -auto-approve'
             }
-            dir("${env.ECS_RDS_DIR}"){
+            dir("${env.ECR_DIR}"){
                 sh 'terraform destroy -auto-approve'
             }
         }

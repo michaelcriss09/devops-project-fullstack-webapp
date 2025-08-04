@@ -49,7 +49,7 @@ pipeline{
             steps{
                 sh """
                 . ${env.VENV_DIR}/bin/activate
-                pytest ./tests
+                pytest tests/
                 pwd
                 ls
                 """

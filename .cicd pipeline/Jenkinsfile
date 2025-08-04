@@ -1,0 +1,125 @@
+pipeline{
+    agent any
+    environment{
+        VENV_DIR = ".venv"
+        PYTHON = "python3"
+        ECR_DIR = "./Terraform/ecr"
+        ECS_RDS_DIR = "./Terraform/ecs-rds"
+        registryCredential = 'ecr:us-east-2:awscreds'  
+        AWS_REGION = "us-east-2"
+        REPOSITORY_NAME = "devops-project"
+        IMAGE_TAG = "latest"
+        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+    }
+    stages{
+        stage('Fetch code'){
+            steps{
+                git branch: 'main', url: 'https://github.com/michaelcriss09/devops-project-fullstack-webapp.git'
+            }
+        }
+
+        stage('Preparing venv'){
+            steps{
+                sh """
+                ${env.PYTHON} -m venv ${env.VENV_DIR}
+                . ${env.VENV_DIR}/bin/activate
+                pip install --upgrade pip
+                pip install pytest
+                pip install -r requirements.txt
+                """
+            }
+        }
+
+        stage('Preparing aws env'){
+            steps{
+                script{
+                    env.AWS_ACCOUNT_ID = sh(
+                        script: "aws sts get-caller-identity --query Account --output text",
+                        returnStdout: true 
+                    ).trim()
+
+                    env.appRegistry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.REPOSITORY_NAME}"
+                    env.devopsRegistry = "https://${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                }
+            }
+        }
+
+        stage('Test unit'){
+            steps{
+                sh """
+                . ${env.VENV_DIR}/bin/activate
+                pytest ./tests
+                pwd
+                ls
+                """
+            }
+        }
+
+        stage('Build App Image'){
+            steps{
+                script{
+                    dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", ".")
+                }
+            }
+        }
+
+        stage('Deploy ECR repository'){
+            steps{
+                dir("$env.ECR_DIR"){
+                    sh '''
+                    terraform init
+                    terraform plan -out=myplan
+                    terraform apply -auto-approve myplan
+                    '''
+                }
+            }
+        }
+        stage('Upload App Image'){
+            steps{
+                script{
+                    docker.withRegistry(devopsRegistry, registryCredential){
+                        dockerImage.push("$BUILD_NUMBER")
+                        dockerImage.push("${env.IMAGE_TAG}")
+                    }
+                }
+            }
+        }
+
+        stage('Deploy ECS and RDS'){
+            steps{
+                dir("$env.ECS_RDS_DIR"){
+                    sh """
+                    terraform init
+                    terraform plan -out=myplan
+                    terraform apply -auto-approve myplan
+                    """
+                }
+            }
+        }
+
+        stage('Terraform destroy') {
+            steps {
+                input "Want to remove terraform provisioning infraestructure?"
+                dir("${env.ECR_DIR}") {
+                    sh 'terraform destroy -auto-approve'
+                }
+
+                dir("${env.ECS_RDS_DIR}"){
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }   
+    }
+    post{
+        failure{
+            echo "Build failed. Destroying infraestructure..."
+            dir("${env.ECR_DIR}"){
+                sh 'terraform destroy -auto-approve'
+            }
+            dir("${env.ECS_RDS_DIR}"){
+                sh 'terraform destroy -auto-approve'
+            }
+        }
+    }
+}

@@ -10,7 +10,7 @@ pipeline{
         REPOSITORY_NAME = "devops-project"
         IMAGE_TAG = "latest"
         AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+        SONAR_PROJECT_KEY = "devops-project"
     }
     stages{
         stage('Fetch code'){
@@ -29,6 +29,44 @@ pipeline{
 
                     env.appRegistry = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.REPOSITORY_NAME}"
                     env.devopsRegistry = "https://${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                }
+            }
+        }
+
+        stage('Lint'){
+            steps{
+                sh '''
+                  python3 -m venv venv
+                  . venv/bin/activate
+                  pip install pylint
+                  pylint main.py db.py || true
+                  pylint --output-format=json main.py db.py > pylint-report.json || true
+                '''
+            }
+        }
+
+        stage('SonarQube analisys code'){
+            environment{
+                scannerHome = tool 'sonar6.2'
+                SONAR_PROJECT_KEY = 'devops-project'
+            }
+            steps{
+                withSonarQubeEnv('sonarserver'){
+                    sh'''
+                    ${scannerHome}/bin/sonar-scanner \
+                      -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                      -Dsonar.prorjectVersion=1.0 \
+                      -Dsonar.sources=. \
+                      -Dsonar.language=py \
+                    '''
+                }
+            }
+        }
+
+        stage("Quality Gate"){
+            steps {
+                timeout(time: 1, unit: 'HOURS'){
+                    waitForQualityGate abortPipeline:true
                 }
             }
         }
@@ -52,7 +90,7 @@ pipeline{
                 }
             }
         }
-        stage('Upload App Image'){
+        stage('Upload Image to ECR'){
             steps{
                 script{
                     docker.withRegistry(devopsRegistry, registryCredential){
